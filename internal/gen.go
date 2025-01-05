@@ -10,10 +10,10 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
-	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 	"github.com/sqlc-dev/plugin-sdk-go/metadata"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
+	"github.com/sqlc-dev/plugin-sdk-go/sdk"
+	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 )
 
 type tmplCtx struct {
@@ -34,6 +34,7 @@ type tmplCtx struct {
 	EmitPreparedQueries       bool
 	EmitInterface             bool
 	EmitEmptySlices           bool
+	EmitNilRecords            bool
 	EmitMethodsWithDBArgument bool
 	EmitEnumValidMethod       bool
 	EmitAllEnumValues         bool
@@ -174,6 +175,7 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 		EmitDBTags:                options.EmitDbTags,
 		EmitPreparedQueries:       options.EmitPreparedQueries,
 		EmitEmptySlices:           options.EmitEmptySlices,
+		EmitNilRecords:            options.EmitNilRecords,
 		EmitMethodsWithDBArgument: options.EmitMethodsWithDbArgument,
 		EmitEnumValidMethod:       options.EmitEnumValidMethod,
 		EmitAllEnumValues:         options.EmitAllEnumValues,
@@ -232,7 +234,7 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 
 	output := map[string]string{}
 
-	execute := func(name, templateName string) error {
+	execute := func(name, packageName, templateName string) error {
 		imports := i.Imports(name)
 		replacedQueries := replaceConflictedArg(imports, queries)
 
@@ -240,6 +242,7 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 		w := bufio.NewWriter(&b)
 		tctx.SourceName = name
 		tctx.GoQueries = replacedQueries
+		tctx.Package = packageName
 		err := tmpl.ExecuteTemplate(w, templateName, &tctx)
 		w.Flush()
 		if err != nil {
@@ -251,8 +254,13 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 			return fmt.Errorf("source error: %w", err)
 		}
 
-		if templateName == "queryFile" && options.OutputFilesSuffix != "" {
-			name += options.OutputFilesSuffix
+		if templateName == "queryFile" {
+			if options.OutputFilesPrefix != "" {
+				name = options.OutputFilesPrefix + name
+			}
+			if options.OutputFilesSuffix != "" {
+				name += options.OutputFilesSuffix
+			}
 		}
 
 		if !strings.HasSuffix(name, ".go") {
@@ -262,46 +270,69 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 		return nil
 	}
 
+	dbPackageName := options.Package
 	dbFileName := "db.go"
+	if options.OutputDbPackage != "" {
+		dbPackageName = options.OutputDbPackage
+	}
 	if options.OutputDbFileName != "" {
 		dbFileName = options.OutputDbFileName
 	}
+
+	modelsPackageName := options.Package
 	modelsFileName := "models.go"
+	if options.OutputModelsPackage != "" {
+		modelsPackageName = options.OutputModelsPackage
+	}
 	if options.OutputModelsFileName != "" {
 		modelsFileName = options.OutputModelsFileName
 	}
+
+	querierPackageName := options.Package
 	querierFileName := "querier.go"
+	if options.OutputQuerierPackage != "" {
+		querierPackageName = options.OutputQuerierPackage
+	}
 	if options.OutputQuerierFileName != "" {
 		querierFileName = options.OutputQuerierFileName
 	}
+
+	copyfromPackageName := options.Package
 	copyfromFileName := "copyfrom.go"
+	if options.OutputCopyfromPackage != "" {
+		copyfromPackageName = options.OutputCopyfromPackage
+	}
 	if options.OutputCopyfromFileName != "" {
 		copyfromFileName = options.OutputCopyfromFileName
 	}
 
+	batchPackageName := options.Package
 	batchFileName := "batch.go"
+	if options.OutputBatchPackage != "" {
+		batchPackageName = options.OutputBatchPackage
+	}
 	if options.OutputBatchFileName != "" {
 		batchFileName = options.OutputBatchFileName
 	}
 
-	if err := execute(dbFileName, "dbFile"); err != nil {
+	if err := execute(dbFileName, dbPackageName, "dbFile"); err != nil {
 		return nil, err
 	}
-	if err := execute(modelsFileName, "modelsFile"); err != nil {
+	if err := execute(modelsFileName, modelsPackageName, "modelsFile"); err != nil {
 		return nil, err
 	}
 	if options.EmitInterface {
-		if err := execute(querierFileName, "interfaceFile"); err != nil {
+		if err := execute(querierFileName, querierPackageName, "interfaceFile"); err != nil {
 			return nil, err
 		}
 	}
 	if tctx.UsesCopyFrom {
-		if err := execute(copyfromFileName, "copyfromFile"); err != nil {
+		if err := execute(copyfromFileName, copyfromPackageName, "copyfromFile"); err != nil {
 			return nil, err
 		}
 	}
 	if tctx.UsesBatch {
-		if err := execute(batchFileName, "batchFile"); err != nil {
+		if err := execute(batchFileName, batchPackageName, "batchFile"); err != nil {
 			return nil, err
 		}
 	}
@@ -311,8 +342,13 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 		files[gq.SourceName] = struct{}{}
 	}
 
+	sourcePackageName := options.Package
+	if options.OutputFilesPackage != "" {
+		sourcePackageName = options.OutputFilesPackage
+	}
+
 	for source := range files {
-		if err := execute(source, "queryFile"); err != nil {
+		if err := execute(source, sourcePackageName, "queryFile"); err != nil {
 			return nil, err
 		}
 	}

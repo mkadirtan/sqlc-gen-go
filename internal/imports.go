@@ -2,11 +2,12 @@ package golang
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 	"github.com/sqlc-dev/plugin-sdk-go/metadata"
+	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 )
 
 type fileImports struct {
@@ -390,8 +391,19 @@ func (i *importer) queryImports(filename string) fileImports {
 		return false
 	}
 
+	if i.Options.EmitNilRecords {
+		std["errors"] = struct{}{}
+	}
+
 	if anyNonCopyFrom {
 		std["context"] = struct{}{}
+	}
+
+	// fmt.Println(filename)
+	modelsDir := filepath.Dir(i.Options.OutputModelsFileName)
+	if modelsDir != filepath.Dir(filename) {
+		modulePackage := filepath.Join(i.Options.Module, modelsDir)
+		std[modulePackage] = struct{}{}
 	}
 
 	sqlpkg := parseDriver(i.Options.SqlPackage)

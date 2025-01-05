@@ -6,11 +6,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
-	"github.com/sqlc-dev/plugin-sdk-go/sdk"
-	"github.com/sqlc-dev/sqlc-gen-go/internal/inflection"
 	"github.com/sqlc-dev/plugin-sdk-go/metadata"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
+	"github.com/sqlc-dev/plugin-sdk-go/sdk"
+	"github.com/sqlc-dev/sqlc-gen-go/internal/inflection"
+	"github.com/sqlc-dev/sqlc-gen-go/internal/opts"
 )
 
 func buildEnums(req *plugin.GenerateRequest, options *opts.Options) []Enum {
@@ -62,6 +62,12 @@ func buildEnums(req *plugin.GenerateRequest, options *opts.Options) []Enum {
 
 func buildStructs(req *plugin.GenerateRequest, options *opts.Options) []Struct {
 	var structs []Struct
+
+	modelsPackageName := options.Package
+	if options.OutputModelsPackage != "" {
+		modelsPackageName = options.OutputModelsPackage
+	}
+
 	for _, schema := range req.Catalog.Schemas {
 		if schema.Name == "pg_catalog" || schema.Name == "information_schema" {
 			continue
@@ -80,8 +86,10 @@ func buildStructs(req *plugin.GenerateRequest, options *opts.Options) []Struct {
 					Exclusions: options.InflectionExcludeTableNames,
 				})
 			}
+
 			s := Struct{
 				Table:   &plugin.Identifier{Schema: schema.Name, Name: table.Rel.Name},
+				Package: modelsPackageName,
 				Name:    StructName(structName, options),
 				Comment: table.Comment,
 			}
@@ -353,7 +361,8 @@ func putOutColumns(query *plugin.Query) bool {
 // This is unlikely to happen, so don't fix it yet
 func columnsToStruct(req *plugin.GenerateRequest, options *opts.Options, name string, columns []goColumn, useID bool) (*Struct, error) {
 	gs := Struct{
-		Name: name,
+		Package: "",
+		Name:    name,
 	}
 	seen := map[string][]int{}
 	suffixes := map[int]int{}

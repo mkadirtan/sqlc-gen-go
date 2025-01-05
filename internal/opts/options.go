@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"path/filepath"
 
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 )
@@ -17,6 +16,7 @@ type Options struct {
 	EmitPreparedQueries         bool              `json:"emit_prepared_queries" yaml:"emit_prepared_queries"`
 	EmitExactTableNames         bool              `json:"emit_exact_table_names,omitempty" yaml:"emit_exact_table_names"`
 	EmitEmptySlices             bool              `json:"emit_empty_slices,omitempty" yaml:"emit_empty_slices"`
+	EmitNilRecords              bool              `json:"emit_nil_records,omitempty" yaml:"emit_nil_records"`
 	EmitExportedQueries         bool              `json:"emit_exported_queries" yaml:"emit_exported_queries"`
 	EmitResultStructPointers    bool              `json:"emit_result_struct_pointers" yaml:"emit_result_struct_pointers"`
 	EmitParamsStructPointers    bool              `json:"emit_params_struct_pointers" yaml:"emit_params_struct_pointers"`
@@ -26,17 +26,25 @@ type Options struct {
 	EmitAllEnumValues           bool              `json:"emit_all_enum_values,omitempty" yaml:"emit_all_enum_values"`
 	EmitSqlAsComment            bool              `json:"emit_sql_as_comment,omitempty" yaml:"emit_sql_as_comment"`
 	JsonTagsCaseStyle           string            `json:"json_tags_case_style,omitempty" yaml:"json_tags_case_style"`
+	Module                      string            `json:"module" yaml:"module"`
 	Package                     string            `json:"package" yaml:"package"`
 	Out                         string            `json:"out" yaml:"out"`
 	Overrides                   []Override        `json:"overrides,omitempty" yaml:"overrides"`
 	Rename                      map[string]string `json:"rename,omitempty" yaml:"rename"`
 	SqlPackage                  string            `json:"sql_package" yaml:"sql_package"`
 	SqlDriver                   string            `json:"sql_driver" yaml:"sql_driver"`
+	OutputBatchPackage          string            `json:"output_batch_package,omitempty" yaml:"output_batch_package"`
 	OutputBatchFileName         string            `json:"output_batch_file_name,omitempty" yaml:"output_batch_file_name"`
+	OutputDbPackage             string            `json:"output_db_package,omitempty" yaml:"output_db_package"`
 	OutputDbFileName            string            `json:"output_db_file_name,omitempty" yaml:"output_db_file_name"`
+	OutputModelsPackage         string            `json:"output_models_package,omitempty" yaml:"output_models_package"`
 	OutputModelsFileName        string            `json:"output_models_file_name,omitempty" yaml:"output_models_file_name"`
+	OutputQuerierPackage        string            `json:"output_querier_package,omitempty" yaml:"output_querier_package"`
 	OutputQuerierFileName       string            `json:"output_querier_file_name,omitempty" yaml:"output_querier_file_name"`
+	OutputCopyfromPackage       string            `json:"output_copyfrom_package,omitempty" yaml:"output_copyfrom_package"`
 	OutputCopyfromFileName      string            `json:"output_copyfrom_file_name,omitempty" yaml:"output_copyfrom_file_name"`
+	OutputFilesPackage          string            `json:"output_files_package,omitempty" yaml:"output_files_package"`
+	OutputFilesPrefix           string            `json:"output_files_prefix,omitempty" yaml:"output_files_prefix"`
 	OutputFilesSuffix           string            `json:"output_files_suffix,omitempty" yaml:"output_files_suffix"`
 	InflectionExcludeTableNames []string          `json:"inflection_exclude_table_names,omitempty" yaml:"inflection_exclude_table_names"`
 	QueryParameterLimit         *int32            `json:"query_parameter_limit,omitempty" yaml:"query_parameter_limit"`
@@ -83,12 +91,12 @@ func parseOpts(req *plugin.GenerateRequest) (*Options, error) {
 		return nil, fmt.Errorf("unmarshalling plugin options: %w", err)
 	}
 
+	if options.Module == "" {
+		return nil, fmt.Errorf("invalid options: missing module name")
+	}
+
 	if options.Package == "" {
-		if options.Out != "" {
-			options.Package = filepath.Base(options.Out)
-		} else {
-			return nil, fmt.Errorf("invalid options: missing package name")
-		}
+		options.Package = "main"
 	}
 
 	for i := range options.Overrides {

@@ -28,6 +28,11 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
 	var {{.Ret.Name}} {{.Ret.Type}}
 	{{- end}}
 	err := row.Scan({{.Ret.Scan}})
+{{- if $.EmitNilRecords}}
+    if err != nil && errors.Is(err, sql.ErrNoRows) {
+        return nil, nil
+    }
+{{- end}}
 	return {{.Ret.ReturnName}}, err
 }
 {{end}}
