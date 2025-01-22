@@ -392,6 +392,7 @@ func (i *importer) queryImports(filename string) fileImports {
 	}
 
 	if i.Options.EmitNilRecords {
+		std["database/sql"] = struct{}{}
 		std["errors"] = struct{}{}
 	}
 
