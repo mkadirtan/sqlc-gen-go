@@ -256,6 +256,9 @@ func buildQueries(req *plugin.GenerateRequest, options *opts.Options, structs []
 				})
 			}
 			s, err := columnsToStruct(req, options, gq.MethodName+"Params", cols, false)
+			if options.OutputModelsPackage != "" {
+				s.Package = options.OutputModelsPackage
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -319,6 +322,9 @@ func buildQueries(req *plugin.GenerateRequest, options *opts.Options, structs []
 				}
 				var err error
 				gs, err = columnsToStruct(req, options, gq.MethodName+"Row", columns, true)
+				if options.OutputModelsPackage != "" {
+					gs.Package = options.OutputModelsPackage
+				}
 				if err != nil {
 					return nil, err
 				}

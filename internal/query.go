@@ -96,6 +96,19 @@ func (v QueryValue) Type() string {
 	panic("no type for QueryValue: " + v.Name)
 }
 
+func (v QueryValue) TypeName() string {
+	if v.Typ != "" {
+		return v.Typ
+	}
+	if v.Struct != nil {
+		// if v.Struct.Package != "" {
+		// 	return fmt.Sprintf("%s.%s", v.Struct.Package, v.Struct.Name)
+		// }
+		return v.Struct.Name
+	}
+	panic("no typename for QueryValue: " + v.Name)
+}
+
 func (v *QueryValue) DefineType() string {
 	t := v.Type()
 	if v.IsPointer() {

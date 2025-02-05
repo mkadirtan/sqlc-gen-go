@@ -273,7 +273,37 @@ func (i *importer) interfaceImports() fileImports {
 }
 
 func (i *importer) modelImports() fileImports {
-	std, pkg := buildImports(i.Options, nil, i.usesType)
+	std, pkg := buildImports(i.Options, nil, func(name string) bool {
+		for _, q := range i.Queries {
+			if q.hasRetType() {
+				if q.Ret.EmitStruct() {
+					for _, f := range q.Ret.Struct.Fields {
+						if hasPrefixIgnoringSliceAndPointerPrefix(f.Type, name) {
+							return true
+						}
+					}
+				}
+				if hasPrefixIgnoringSliceAndPointerPrefix(q.Ret.Type(), name) {
+					return true
+				}
+			}
+			// Check the fields of the argument struct if it's emitted
+			if q.Arg.EmitStruct() {
+				for _, f := range q.Arg.Struct.Fields {
+					if hasPrefixIgnoringSliceAndPointerPrefix(f.Type, name) {
+						return true
+					}
+				}
+			}
+			// Check the argument pairs inside the method definition
+			for _, f := range q.Arg.Pairs() {
+				if hasPrefixIgnoringSliceAndPointerPrefix(f.Type, name) {
+					return true
+				}
+			}
+		}
+		return i.usesType(name)
+	})
 
 	if len(i.Enums) > 0 {
 		std["fmt"] = struct{}{}
@@ -315,23 +345,8 @@ func (i *importer) queryImports(filename string) fileImports {
 	std, pkg := buildImports(i.Options, gq, func(name string) bool {
 		for _, q := range gq {
 			if q.hasRetType() {
-				if q.Ret.EmitStruct() {
-					for _, f := range q.Ret.Struct.Fields {
-						if hasPrefixIgnoringSliceAndPointerPrefix(f.Type, name) {
-							return true
-						}
-					}
-				}
 				if hasPrefixIgnoringSliceAndPointerPrefix(q.Ret.Type(), name) {
 					return true
-				}
-			}
-			// Check the fields of the argument struct if it's emitted
-			if q.Arg.EmitStruct() {
-				for _, f := range q.Arg.Struct.Fields {
-					if hasPrefixIgnoringSliceAndPointerPrefix(f.Type, name) {
-						return true
-					}
 				}
 			}
 			// Check the argument pairs inside the method definition

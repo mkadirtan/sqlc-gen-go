@@ -83,6 +83,21 @@ import (
 {{end}}
 
 {{template "modelsCode" . }}
+{{range .GoQueries}}
+{{if .Arg.EmitStruct}}
+type {{.Arg.TypeName}} struct { {{- range .Arg.UniqueFields}}
+  {{.Name}} {{.Type}} {{if .Tag}}{{$.Q}}{{.Tag}}{{$.Q}}{{end}}
+  {{- end}}
+}
+{{end}}
+
+{{if .Ret.EmitStruct}}
+type {{.Ret.TypeName}} struct { {{- range .Ret.Struct.Fields}}
+  {{.Name}} {{.Type}} {{if .Tag}}{{$.Q}}{{.Tag}}{{$.Q}}{{end}}
+  {{- end}}
+}
+{{end}}
+{{end}}
 {{end}}
 
 {{define "modelsCode"}}
