@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go/format"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -423,10 +424,24 @@ func filterUnusedStructs(enums []Enum, structs []Struct, queries []Query) ([]Enu
 		}
 	}
 
+	keepTypesNames := make([]string, len(keepTypes))
+	i := 0
+	for key, _ := range keepTypes {
+		// if OutputModelsPackage is different from OutputDbPackage,
+		// comparisons between keepTypes and enums and structs become incorrect
+		// Therefore package name is stripped from keepTypes
+		if strings.Contains(key, ".") {
+			keepTypesNames[i] = strings.Split(key, ".")[1]
+		} else {
+			keepTypesNames[i] = key
+		}
+		i++
+	}
+
 	keepEnums := make([]Enum, 0, len(enums))
 	for _, enum := range enums {
-		_, keep := keepTypes[enum.Name]
-		_, keepNull := keepTypes["Null"+enum.Name]
+		keep := slices.Contains(keepTypesNames, enum.Name)
+		keepNull := slices.Contains(keepTypesNames, "Null"+enum.Name)
 		if keep || keepNull {
 			keepEnums = append(keepEnums, enum)
 		}
@@ -434,7 +449,7 @@ func filterUnusedStructs(enums []Enum, structs []Struct, queries []Query) ([]Enu
 
 	keepStructs := make([]Struct, 0, len(structs))
 	for _, st := range structs {
-		if _, ok := keepTypes[st.Name]; ok {
+		if slices.Contains(keepTypesNames, st.Name) {
 			keepStructs = append(keepStructs, st)
 		}
 	}
